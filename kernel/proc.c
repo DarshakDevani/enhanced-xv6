@@ -510,6 +510,9 @@ scheduler(void)
   struct cpu *c = mycpu();
   
   c->proc = 0;
+
+// The default round-robin scheduler
+#ifdef DEFAULT
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
@@ -531,8 +534,42 @@ scheduler(void)
       release(&p->lock);
     }
   }
-}
+#endif
 
+// The first-come, first-serve scheduler
+#ifdef FCFS
+  for(;;){
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    struct proc *minProc = 0;
+
+    // Finding the process with minimum creation time.
+    for (p = proc; p < &proc[NPROC]; p++) {
+      if (p->state == RUNNABLE) {
+        if (minProc == 0)
+          minProc = p;
+        else if (minProc->ctime > p->ctime)
+          minProc = p;
+      }
+    }
+
+    // Running the process with minimum creation time.
+    if (minProc != 0) {
+      acquire(&minProc->lock);
+      if (minProc->state == RUNNABLE) {
+        minProc->state = RUNNING;
+        c->proc = minProc;
+        swtch(&c->context, &minProc->context);
+
+        // Process is done running.
+        c->proc = 0;
+      }
+      release(&minProc->lock);
+    }
+  }
+#endif
+}
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this
