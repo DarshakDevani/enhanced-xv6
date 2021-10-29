@@ -82,6 +82,10 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+#ifdef PBS
+  #define DEFAULT_PRIORITY 60;
+#endif
+
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -109,4 +113,10 @@ struct proc {
   uint rtime;                  // How long the process ran for
   uint ctime;                  // When was the process created 
   uint etime;                  // When did the process exited
+  #ifdef PBS
+    uint s_start_time;           // When the process was last put to sleep
+    uint stime;                  // The sleeping time since it was last scheduled
+    uint static_priority;        // The static priority of the process
+    uint no_of_times_scheduled;  // The number of times the process has been scheduled
+  #endif
 };

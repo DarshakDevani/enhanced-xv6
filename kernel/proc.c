@@ -144,6 +144,13 @@ found:
   p->etime = 0;
   p->ctime = ticks;
 
+  #ifdef PBS
+    p->static_priority = DEFAULT_PRIORITY;
+    p->s_start_time = 0;
+    p->stime = 0;
+    p->no_of_times_scheduled = 0;
+  #endif
+
   return p;
 }
 
@@ -569,6 +576,72 @@ scheduler(void)
     }
   }
 #endif
+
+// The non-preemptive priority-based scheduler
+#ifdef PBS
+  for(;;){
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    struct proc *hpProc = 0;
+    int min_dynamic_priority = 101;
+
+    // Find the highest priority (least DP value) process.
+    for (p = proc; p < &proc[NPROC]; p++) {
+      if (p->state == RUNNABLE) {
+        // Calculating niceness.
+        float s = p->stime;
+        float r = p->rtime;
+        int niceness;
+        if (p->no_of_times_scheduled != 0 && p->rtime != 0 && p->stime != 0)
+          niceness = (int)((s / (r + s)) * 10);
+        else
+          niceness = 5;
+
+        // Calculating dynamic priority.
+        int value = (p->static_priority - niceness + 5 < 100 ? p->static_priority - niceness + 5 : 100);
+        int dp = (0 < value ? value : 0);
+
+        // Selecting process to run.
+        if (hpProc == 0) {
+          min_dynamic_priority = dp;
+          hpProc = p;
+        }
+        else if (dp < min_dynamic_priority) {
+          min_dynamic_priority = dp;
+          hpProc = p;
+        }
+        else if (dp == min_dynamic_priority) {
+          if (hpProc->no_of_times_scheduled > p->no_of_times_scheduled) {
+            hpProc = p;
+          }
+          else if (hpProc->no_of_times_scheduled == p->no_of_times_scheduled) {
+            if (hpProc->ctime > p->ctime) {
+              hpProc = p;
+            }
+          }
+        }
+      }
+    }
+
+    // Schedule the selected highest-priority process.
+    if (hpProc != 0) {
+      acquire(&hpProc->lock);
+      if (hpProc->state == RUNNABLE) {
+        hpProc->no_of_times_scheduled++;
+
+        // Running the process.
+        hpProc->state = RUNNING;
+        c->proc = hpProc;
+        swtch(&c->context, &hpProc->context);
+
+        // Process is done running.
+        c->proc = 0;
+      }
+      release(&hpProc->lock);
+    }
+  }
+#endif
 }
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -649,6 +722,9 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
+  #ifdef PBS
+    p->s_start_time = ticks;
+  #endif
 
   sched();
 
@@ -672,6 +748,9 @@ wakeup(void *chan)
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
+        #ifdef PBS
+          p->stime = ticks - p->s_start_time;
+        #endif
       }
       release(&p->lock);
     }
