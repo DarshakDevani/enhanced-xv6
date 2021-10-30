@@ -83,7 +83,19 @@ struct trapframe {
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 #ifdef PBS
-  #define DEFAULT_PRIORITY 60;
+  #define DEFAULT_PRIORITY 60
+#endif
+
+#ifdef MLFQ
+  #define NQUEUE 5
+
+  // Queue declaration.
+  typedef struct Queue {
+    struct proc *procs[NPROC];
+    int rear;
+  } Queue;
+
+  Queue queues[NQUEUE];
 #endif
 
 // Per-process state
@@ -113,10 +125,18 @@ struct proc {
   uint rtime;                  // How long the process ran for
   uint ctime;                  // When was the process created 
   uint etime;                  // When did the process exited
+  uint mask;                   // To store the argument of the trace syscall
   #ifdef PBS
     uint s_start_time;           // When the process was last put to sleep
     uint stime;                  // The sleeping time since it was last scheduled
     uint static_priority;        // The static priority of the process
     uint no_of_times_scheduled;  // The number of times the process has been scheduled
+  #endif
+  #ifdef MLFQ
+    uint entry_time;             // The time the process entered the queue it is currently in
+    uint current_queue;          // The queue it is currently in.
+    uint queue_ticks[NQUEUE];    // The number of ticks in each queue
+    uint current_queue_ticks;    // The number of ticks in the current queue
+    _Bool demote_flag;           // If 1, process should be demoted to a lower-priority queue
   #endif
 };

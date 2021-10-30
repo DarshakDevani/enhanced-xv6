@@ -26,6 +26,51 @@ extern char trampoline[]; // trampoline.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
+#ifdef MLFQ
+  // Queue functions.
+  void init_queues() {
+    for (int i = 0; i < NQUEUE; i++) {
+      queues[i].rear = -1;
+      for (int j = 0; j < NPROC; j++)
+        queues[i].procs[j] = 0;
+    }
+  }
+
+  void push(struct proc *p, int q_num) {
+    // Checking if it is already present in the queue.
+    for (int i = 0; i <= queues[q_num].rear; i++)
+      if (queues[q_num].procs[i]->pid == p->pid)
+        return;
+
+    // Otherwise inserting the process into the queue.
+    p->entry_time = ticks;
+    p->current_queue = q_num;
+    queues[q_num].rear++;
+    queues[q_num].procs[queues[q_num].rear] = p;
+  }
+
+  void pop(struct proc *p, int q_num) {
+    // Find the required process.
+    int pos = -1;
+    for (int i = 0; i <= queues[q_num].rear; i++)
+      if (queues[q_num].procs[i]->pid == p->pid) {
+        pos = i;
+        break;
+      }
+
+    // If process was not found.
+    if (pos == -1)
+      return;
+
+    // Erase the process by shifting the array.
+    for (int i = pos; i < queues[q_num].rear; i++)
+      queues[q_num].procs[i] = queues[q_num].procs[i + 1];
+
+    queues[q_num].procs[queues[q_num].rear] = 0;
+    queues[q_num].rear--;
+  }
+#endif
+
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
@@ -143,12 +188,22 @@ found:
   p->rtime = 0;
   p->etime = 0;
   p->ctime = ticks;
+  p->mask = 0;
 
   #ifdef PBS
     p->static_priority = DEFAULT_PRIORITY;
     p->s_start_time = 0;
     p->stime = 0;
     p->no_of_times_scheduled = 0;
+  #endif
+
+  #ifdef MLFQ
+    p->entry_time = 0;
+    p->current_queue = 0;
+    p->current_queue_ticks = 0;
+    for (int i = 0; i < NQUEUE; i++)
+      p->queue_ticks[i] = 0;
+    p->demote_flag = 0;
   #endif
 
   return p;
@@ -254,6 +309,10 @@ userinit(void)
 
   p->state = RUNNABLE;
 
+  #ifdef MLFQ
+    push(p, 0);
+  #endif
+
   release(&p->lock);
 }
 
@@ -319,10 +378,14 @@ fork(void)
 
   acquire(&wait_lock);
   np->parent = p;
+  np->mask = p->mask;
   release(&wait_lock);
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  #ifdef MLFQ
+    push(np, 0);
+  #endif
   release(&np->lock);
 
   return pid;
@@ -418,6 +481,9 @@ wait(uint64 addr)
             release(&wait_lock);
             return -1;
           }
+          #ifdef MLFQ
+            pop(np, p->current_queue);
+          #endif
           freeproc(np);
           release(&np->lock);
           release(&wait_lock);
@@ -470,6 +536,9 @@ waitx(uint64 addr, uint* rtime, uint* wtime)
             release(&wait_lock);
             return -1;
           }
+          #ifdef MLFQ
+            pop(np, p->current_queue);
+          #endif
           freeproc(np);
           release(&np->lock);
           release(&wait_lock);
@@ -501,6 +570,14 @@ update_time()
     }
     release(&p->lock); 
   }
+}
+
+void trace(uint64 mask)
+{
+  struct proc *p = myproc();
+  acquire(&p->lock);
+  p->mask = mask;
+  release(&p->lock);
 }
 
 // Per-CPU process scheduler.
@@ -751,6 +828,10 @@ wakeup(void *chan)
         #ifdef PBS
           p->stime = ticks - p->s_start_time;
         #endif
+        // #ifdef MLFQ
+        //   p->current_queue_ticks = 0;
+        //   push(p, p->current_queue);
+        // #endif
       }
       release(&p->lock);
     }
@@ -772,6 +853,9 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
+        // #ifdef MLFQ
+        //   push(p, p->current_queue);
+        // #endif
       }
       release(&p->lock);
       return 0;
