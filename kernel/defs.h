@@ -101,6 +101,7 @@ void            userinit(void);
 int             wait(uint64);
 int             waitx(uint64, uint*, uint*);
 void            trace(uint64);
+int             set_priority(uint64, uint64);
 void            wakeup(void*);
 void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);

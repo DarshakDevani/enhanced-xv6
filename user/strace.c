@@ -6,8 +6,20 @@
 int
 main(int argc, char ** argv)
 {
-    if (trace(atoi(argv[1])) < 0) {
-        fprintf(2, "%s: trace failed\n", argv[0]);
+    if (argc < 3) {
+        fprintf(2, "%s: execution failed - insufficient number of arguments\n", argv[0]);
+        exit(1);
+    }
+
+    int mask = atoi(argv[1]);
+
+    if (mask < 0) {
+        fprintf(2, "%s: execution failed - invalid mask provided\n", argv[0]);
+        exit(1);
+    }
+
+    if (trace(mask) < 0) {
+        fprintf(2, "%s: execution failed\n", argv[0]);
         exit(1);
     }
 

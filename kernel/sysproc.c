@@ -69,6 +69,17 @@ sys_trace(void)
 }
 
 uint64
+sys_set_priority(void)
+{
+  int priority, pid;
+  if (argint(0, &priority) < 0)
+    return -1;
+  if (argint(1, &pid) < 0)
+    return -1;
+  return set_priority(priority, pid);
+}
+
+uint64
 sys_sbrk(void)
 {
   int addr;

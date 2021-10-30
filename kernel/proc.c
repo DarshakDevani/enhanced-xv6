@@ -580,6 +580,29 @@ void trace(uint64 mask)
   release(&p->lock);
 }
 
+int set_priority(uint64 priority, uint64 pid)
+{
+  struct proc *p;
+  int old_sp = -1;
+
+  for (p = proc; p < &proc[NPROC]; p++) {
+    // acquire(&p->lock);
+    #ifdef PBS
+      if (p->pid == pid) {
+        old_sp = p->static_priority;
+        p->static_priority = priority;
+        p->stime = 0;
+        break;
+      }
+    #endif
+    // release(&p->lock);
+  }
+
+  if (old_sp < priority)
+    yield();
+  return old_sp;
+}
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
