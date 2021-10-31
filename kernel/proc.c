@@ -586,20 +586,34 @@ int set_priority(uint64 priority, uint64 pid)
   int old_sp = -1;
 
   for (p = proc; p < &proc[NPROC]; p++) {
-    // acquire(&p->lock);
     #ifdef PBS
       if (p->pid == pid) {
         old_sp = p->static_priority;
         p->static_priority = priority;
+
+        // Old dynamic priority.
+        int niceness = 5;
+        if (p->rtime + p->stime != 0)
+          niceness = (int)((p->stime / (p->rtime + p->stime)) * 10);
+
+        int value = (old_sp - niceness + 5 < 100 ? old_sp - niceness + 5 : 100);
+        int dp_old = (0 < value ? value : 0);
+
+        p->rtime = 0;
         p->stime = 0;
+
+        // New dynamic priority.
+        value = (priority < 100 ? priority : 100);
+        int dp_new = (0 < value ? value : 0);
+
+        if (dp_old > dp_new)
+          yield();
+
         break;
       }
     #endif
-    // release(&p->lock);
   }
 
-  if (old_sp < priority)
-    yield();
   return old_sp;
 }
 
@@ -690,13 +704,9 @@ scheduler(void)
     for (p = proc; p < &proc[NPROC]; p++) {
       if (p->state == RUNNABLE) {
         // Calculating niceness.
-        float s = p->stime;
-        float r = p->rtime;
-        int niceness;
-        if (p->no_of_times_scheduled != 0 && p->rtime != 0 && p->stime != 0)
-          niceness = (int)((s / (r + s)) * 10);
-        else
-          niceness = 5;
+        int niceness = 5;
+        if (p->rtime + p->stime != 0)
+          niceness = (int)((p->stime / (p->rtime + p->stime)) * 10);
 
         // Calculating dynamic priority.
         int value = (p->static_priority - niceness + 5 < 100 ? p->static_priority - niceness + 5 : 100);

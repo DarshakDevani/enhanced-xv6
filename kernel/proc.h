@@ -137,6 +137,6 @@ struct proc {
     uint current_queue;          // The queue it is currently in.
     uint queue_ticks[NQUEUE];    // The number of ticks in each queue
     uint current_queue_ticks;    // The number of ticks in the current queue
-    _Bool demote_flag;           // If 1, process should be demoted to a lower-priority queue
+    uint demote_flag;            // If 1, process should be demoted to a lower-priority queue
   #endif
 };
