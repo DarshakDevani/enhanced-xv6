@@ -78,8 +78,20 @@ usertrap(void)
 
   // give up the CPU if this is a timer interrupt.
   #if !defined(FCFS) && !defined(PBS)
-    if(which_dev == 2)
-      yield();
+    if(which_dev == 2) {
+      #ifdef MLFQ
+      // Demotion of process if time slice has elapsed
+        struct proc *p = myproc();
+        if ((ticks - p->entry_time) > (1 << p->current_queue)) {
+          if (p->current_queue < 4)
+            p->current_queue++;
+          p->entry_time = ticks;
+      #endif
+          yield();
+      #ifdef MLFQ
+        }
+      #endif
+    }
   #endif
 
   usertrapret();
@@ -153,8 +165,20 @@ kerneltrap()
 
   // give up the CPU if this is a timer interrupt.
   #if !defined(FCFS) && !defined(PBS)
-    if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
-      yield();
+    if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING) {
+      #ifdef MLFQ
+      // Demotion of process if time slice has elapsed
+        struct proc *p = myproc();
+        if ((ticks - p->entry_time) > (1 << p->current_queue)) {
+          if (p->current_queue < 4)
+            p->current_queue++;
+          p->entry_time = ticks;
+      #endif
+          yield();
+      #ifdef MLFQ
+        }
+      #endif
+    }
   #endif
 
   // the yield() may have caused some traps to occur,

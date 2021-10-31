@@ -87,15 +87,7 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 #endif
 
 #ifdef MLFQ
-  #define NQUEUE 5
-
-  // Queue declaration.
-  typedef struct Queue {
-    struct proc *procs[NPROC];
-    int rear;
-  } Queue;
-
-  Queue queues[NQUEUE];
+  #define WAITING_LIMIT 16
 #endif
 
 // Per-process state
@@ -132,11 +124,11 @@ struct proc {
     uint static_priority;        // The static priority of the process
     uint no_of_times_scheduled;  // The number of times the process has been scheduled
   #endif
+
   #ifdef MLFQ
-    uint entry_time;             // The time the process entered the queue it is currently in
-    uint current_queue;          // The queue it is currently in.
-    uint queue_ticks[NQUEUE];    // The number of ticks in each queue
-    uint current_queue_ticks;    // The number of ticks in the current queue
-    uint demote_flag;            // If 1, process should be demoted to a lower-priority queue
+    uint entry_time;             // Entry time in the current queue
+    uint queue_ticks[5];         // Number of ticks done in each queue
+    uint current_queue;          // Current queue number of the process
+    uint no_of_times_scheduled;  // The number of times the process has been scheduled
   #endif
 };
