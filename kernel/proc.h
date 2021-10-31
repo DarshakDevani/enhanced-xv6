@@ -118,17 +118,17 @@ struct proc {
   uint ctime;                  // When was the process created 
   uint etime;                  // When did the process exited
   uint mask;                   // To store the argument of the trace syscall
+  uint no_of_times_scheduled;  // The number of times the process has been scheduled
+
   #ifdef PBS
     uint s_start_time;           // When the process was last put to sleep
     uint stime;                  // The sleeping time since it was last scheduled
     uint static_priority;        // The static priority of the process
-    uint no_of_times_scheduled;  // The number of times the process has been scheduled
   #endif
 
   #ifdef MLFQ
     uint entry_time;             // Entry time in the current queue
     uint queue_ticks[5];         // Number of ticks done in each queue
     uint current_queue;          // Current queue number of the process
-    uint no_of_times_scheduled;  // The number of times the process has been scheduled
   #endif
 };

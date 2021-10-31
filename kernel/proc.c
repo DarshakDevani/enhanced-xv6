@@ -144,17 +144,16 @@ found:
   p->etime = 0;
   p->ctime = ticks;
   p->mask = 0;
+  p->no_of_times_scheduled = 0;
 
   #ifdef PBS
     p->static_priority = DEFAULT_PRIORITY;
     p->s_start_time = 0;
     p->stime = 0;
-    p->no_of_times_scheduled = 0;
   #endif
 
   #ifdef MLFQ
     p->entry_time = ticks;
-    p->no_of_times_scheduled = 0;
     p->current_queue = 0;
     for (int i = 0; i < 5; i++)
       p->queue_ticks[i] = 0;
@@ -329,13 +328,13 @@ fork(void)
   acquire(&wait_lock);
   np->parent = p;
   np->mask = p->mask;
+  #ifdef MLFQ
+    np->current_queue = p->current_queue;
+  #endif
   release(&wait_lock);
 
   acquire(&np->lock);
   np->state = RUNNABLE;
-  #ifdef MLFQ
-    np->current_queue = p->current_queue; ///////////////////
-  #endif
   release(&np->lock);
 
   return pid;
@@ -588,6 +587,7 @@ scheduler(void)
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
+        p->no_of_times_scheduled++;
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
@@ -623,6 +623,7 @@ scheduler(void)
     if (minProc != 0) {
       acquire(&minProc->lock);
       if (minProc->state == RUNNABLE) {
+        minProc->no_of_times_scheduled++;
         minProc->state = RUNNING;
         c->proc = minProc;
         swtch(&c->context, &minProc->context);
@@ -709,8 +710,9 @@ scheduler(void)
     // Aging the processes
     for (p = proc; p < &proc[NPROC]; p++) {
       if (p->state == RUNNABLE) {
-        if (p->current_queue > 0 && (ticks - p->entry_time > WAITING_LIMIT)) {
+        if ((ticks - p->entry_time > WAITING_LIMIT) && p->current_queue > 0) {
           acquire(&p->lock);
+          p->queue_ticks[p->current_queue] += (ticks - p->entry_time);
           p->current_queue--;
           p->entry_time = ticks;
           release(&p->lock);
@@ -721,8 +723,10 @@ scheduler(void)
     // Selecting the process to be scheduled
     for (p = proc; p < &proc[NPROC]; p++) {
       if (p->state == RUNNABLE) {
-        if (chosenProc == 0)
+        if (chosenProc == 0) {
           chosenProc = p;
+          highest_queue = chosenProc->current_queue;
+        }
         else if (p->current_queue < highest_queue) {
           chosenProc = p;
           highest_queue = chosenProc->current_queue;
@@ -739,7 +743,6 @@ scheduler(void)
       if (chosenProc->state == RUNNABLE) {
         chosenProc->no_of_times_scheduled++;
         chosenProc->entry_time = ticks;
-        chosenProc->queue_ticks[chosenProc->current_queue] += (1 << chosenProc->current_queue);
 
         // Running the process.
         chosenProc->state = RUNNING;
@@ -748,6 +751,7 @@ scheduler(void)
 
         // Process is done running.
         c->proc = 0;
+        chosenProc->queue_ticks[chosenProc->current_queue] += (ticks - chosenProc->entry_time);
       }
       release(&chosenProc->lock);
     }
@@ -938,6 +942,18 @@ procdump(void)
   struct proc *p;
   char *state;
 
+  #if defined(DEFAULT) || defined(FCFS)
+    printf("\nPID\tState\trtime\twtime\tnrun");
+  #endif
+
+  #ifdef PBS
+    printf("\nPID\tPrio\tState\trtime\twtime\tnrun");
+  #endif
+
+  #ifdef MLFQ
+    printf("\nPID\tPrio\tState\trtime\twtime\tnrun\tq0\tq1\tq2\tq3\tq4");
+  #endif
+
   printf("\n");
   for(p = proc; p < &proc[NPROC]; p++){
     if(p->state == UNUSED)
@@ -946,7 +962,41 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    printf("%d %s %s", p->pid, state, p->name);
-    printf("\n");
+    
+    #if defined(DEFAULT) || defined(FCFS)
+      int end_time = p->etime;
+      if (end_time == 0)
+        end_time = ticks;
+
+      printf("%d\t%s\t%d\t%d\t%d", p->pid, state, p->rtime, end_time - p->ctime - p->rtime, p->no_of_times_scheduled);
+      printf("\n");
+    #endif
+
+    #ifdef PBS
+      int end_time = p->etime;
+      if (end_time == 0)
+        end_time = ticks;
+
+      int niceness = 5;
+      if (p->rtime + p->stime != 0)
+        niceness = (int)((p->stime / (p->rtime + p->stime)) * 10);
+      int value = (p->static_priority - niceness + 5 < 100 ? p->static_priority - niceness + 5 : 100);
+      int dp = (0 < value ? value : 0);
+
+      printf("%d\t%d\t%s\t%d\t%d\t%d", p->pid, dp, state, p->rtime, end_time - p->ctime - p->rtime, p->no_of_times_scheduled);
+      printf("\n");
+    #endif
+
+    #ifdef MLFQ
+      int end_time = p->etime;
+      if (end_time == 0)
+        end_time = ticks;
+
+      int current_queue = p->current_queue;
+      if (p->state == ZOMBIE)
+        current_queue = -1;
+      printf("%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d", p->pid, current_queue, state, p->rtime, end_time - p->ctime - p->rtime, p->no_of_times_scheduled, p->queue_ticks[0], p->queue_ticks[1], p->queue_ticks[2], p->queue_ticks[3], p->queue_ticks[4]);
+      printf("\n");
+    #endif
   }
 }
