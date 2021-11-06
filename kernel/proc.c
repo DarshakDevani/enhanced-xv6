@@ -328,9 +328,6 @@ fork(void)
   acquire(&wait_lock);
   np->parent = p;
   np->mask = p->mask;
-  #ifdef MLFQ
-    np->current_queue = p->current_queue;
-  #endif
   release(&wait_lock);
 
   acquire(&np->lock);
