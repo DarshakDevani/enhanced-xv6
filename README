@@ -83,7 +83,7 @@ This is a simplified preemptive scheduling policy that allows processes to move 
 
 ## Specification 3: procdump
 
-`procdump()` prints a list of processes to the console when a user enters Ctrl-P on the console.
+`procdump()` prints a list of processes to the console when a user enters <kbd>Ctrl</kbd>+<kbd>P</kbd> on the console.
 Here, I have extended this function to print more information about all
 the active processes.
 
