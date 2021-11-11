@@ -41,7 +41,7 @@ This is a non-preemptive policy that selects the process with the lowest creatio
 * The only modification made was in `kernel/proc.c`. We run a for loop to search for the process with the lowest process creation time (`struct proc::ctime`, which stores the number of ticks when the process is allocated and initialized).
 * To disable preemption, the call to `yield()` in `usertrap()` and `kerneltrap()` in `kernel/trap.c` was disabled conditionally, depending on the scheduler chosen. For FCFS, it has been disabled.
 
-### Priority-based
+### 2. Priority-based
 
 This is a non-preemptive priority-based scheduling policy that selects the process
 with the highest priority for execution. In case two or more processes have the same priority, we use the number of times the process has been scheduled to break the tie. If the tie remains, use the start-time of the process to break the tie (processes with lower start times are scheduled earlier).
@@ -60,7 +60,7 @@ Here, we have static priority and dynamic priority. Dynamic priority varies with
 setpriority [priority] [pid]
 ```
 
-### Multi-level feedback queue
+### 3. Multi-level feedback queue
 
 This is a simplified preemptive scheduling policy that allows processes to move between different priority queues based on their behavior and CPU bursts.
 * If a process uses too much CPU time, it is pushed to a lower priority queue, leaving I/O bound and interactive processes in the higher priority queues.
