@@ -68,7 +68,7 @@ This is a simplified preemptive scheduling policy that allows processes to move 
 
 #### Implementation
 
-* The five priority queues have not been implemented physically; rather they have been stored as a member variable `current_queue` of `struct proc`. This facilitates easiness when it comes to adding and removing processes and "shifting between queues" by just changing the number, and eliminates the overhead in popping from one queue and pushing to another.
+* The five priority queues have not been implemented physically; rather they have been stored as a member variable `current_queue` of `struct proc`. This facilitates adding and removing processes and "shifting between queues" by just changing the number, and eliminates the overhead in popping from one queue and pushing to another.
 * Each queue has a time-slice as follows after which they are demoted to a lower priority queue (`current_queue` is decremented).
 
 1. For priority 0: 1 timer tick
