@@ -31,7 +31,6 @@ extern struct cpu cpus[NCPU];
 // per-process data for the trap handling code in trampoline.S.
 // sits in a page by itself just under the trampoline page in the
 // user page table. not specially mapped in the kernel page table.
-// the sscratch register points here.
 // uservec in trampoline.S saves user registers in the trapframe,
 // then initializes registers from the trapframe's
 // kernel_sp, kernel_hartid, kernel_satp, and jumps to kernel_trap.
@@ -82,14 +81,6 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
-#ifdef PBS
-  #define DEFAULT_PRIORITY 60
-#endif
-
-#ifdef MLFQ
-  #define WAITING_LIMIT 16
-#endif
-
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -113,22 +104,4 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-
-  uint rtime;                  // How long the process ran for
-  uint ctime;                  // When was the process created 
-  uint etime;                  // When did the process exited
-  uint mask;                   // To store the argument of the trace syscall
-  uint no_of_times_scheduled;  // The number of times the process has been scheduled
-
-  #ifdef PBS
-    uint s_start_time;           // When the process was last put to sleep
-    uint stime;                  // The sleeping time since it was last scheduled
-    uint static_priority;        // The static priority of the process
-  #endif
-
-  #ifdef MLFQ
-    uint entry_time;             // Entry time in the current queue
-    uint queue_ticks[5];         // Number of ticks done in each queue
-    uint current_queue;          // Current queue number of the process
-  #endif
 };

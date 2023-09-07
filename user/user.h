@@ -1,19 +1,15 @@
 struct stat;
-struct rtcdate;
 
 // system calls
 int fork(void);
 int exit(int) __attribute__((noreturn));
 int wait(int*);
-int waitx(int*, int* /*wtime*/, int* /*rtime*/);
-int trace(int);
-int set_priority(int, int);
 int pipe(int*);
 int write(int, const void*, int);
 int read(int, void*, int);
 int close(int);
 int kill(int);
-int exec(char*, char**);
+int exec(const char*, char**);
 int open(const char*, int);
 int mknod(const char*, short, short);
 int unlink(const char*);
